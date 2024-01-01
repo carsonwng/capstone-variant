@@ -1,11 +1,9 @@
 # ignore all __pycache__ directories
 /**/__pycache__/*
 
-# ignore ./working directory
-./working/*
-
-# ignore entire ./data directory
-./data/*
+# ignore entire data directory
+data/*
 
 # ignore env vars
 .env
+data/cdx-00000.gz
