@@ -6,4 +6,3 @@ data/*
 
 # ignore env vars
 .env
-data/cdx-00000.gz
