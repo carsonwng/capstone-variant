@@ -29,6 +29,11 @@ async_col_cdx = async_db["cdx"]
 col_warc = db["warc"]
 async_col_warc = async_db["warc"]
 
+mongo_queue = vars.mongo.QueueMongo(
+    async_col_warc,
+    batch_size = vars.settings.batch_size
+)
+
 # if cdx collection is empty, throw error
 if col_cdx.count_documents({}) == 0:
     log.error("CDX collection is empty, closing...")
@@ -73,11 +78,9 @@ async def main():
 
                         download_progress.close()
 
-                    with gzip.open(cdx_dir, "rt") as f:
-                        process_progress = tqdm(total=int(os.popen(f"wc -l {cdx_dir}").read().split(" ")[0]), unit="lines", unit_scale=True) # os.popen is the ungodly way to check file size (in terms of lines)
+                    with gzip.open(cdx_dir, "rt", encoding="utf-8") as f:
+                        process_progress = tqdm(total=int(os.popen(f"unpigz -p 8 -c {cdx_dir} | wc -l").read()), unit="lines", unit_scale=True) # os.popen is the ungodly way to check file size (in terms of lines)
                         process_progress.set_description(f"Processing {cdx['name'].split('/')[-1]}")
-
-                        async_tasks = []
 
                         for line in f:
                             target, timestamp, warc_meta = line.split(" ", 2)
@@ -85,39 +88,41 @@ async def main():
                             warc_meta: dict = json.loads(warc_meta)
 
                             if warc_meta["status"] != "200":
+                                process_progress.update(1)
                                 continue
 
                             if warc_meta["mime-detected"] not in vars.settings.accepted_mimes:
+                                process_progress.update(1)
                                 continue
                             
-                            async_tasks.append(async_col_warc.insert_one({
+                            res = mongo_queue.insert_one({
                                 "name": target,
                                 "crawl_id": cdx["crawl_id"],
                                 "crawl_mid": cdx["crawl_mid"],
                                 "cdx_id": cdx["id"],
                                 "cdx_mid": cdx["_id"],
                                 "status": "not_processed",
-                                "length": warc_meta["length"],
-                                "offset": warc_meta["offset"],
+                                "length": int(warc_meta["length"]),
+                                "offset": int(warc_meta["offset"]),
+                                "range": f"{warc_meta['offset']}-{warc_meta['offset'] + warc_meta['length']}",
                                 "filename": warc_meta["filename"],
                                 "warc_timestamp": timestamp
-                            }))
+                            })
 
                             process_progress.update(1)
-                        
+
                         process_progress.close()
-
-                        log.debug(f"Waiting for {len(async_tasks)} warcs to process")
-                        # wait for all warcs to be processed
-                        await asyncio.gather(*async_tasks)
-
-                        col_cdx.update_one({ "_id": cdx["_id"] }, { "$set": { "status": "processed" } })
-                        log.info(f"{cdx['name']} processed")
                         
+            os.remove(cdx_dir)
+
+            col_cdx.update_one({ "_id": cdx["_id"] }, { "$set": { "status": "processed" } })
+            log.info(f"{cdx['name']} processed")                        
     
     except KeyboardInterrupt:
-        log.info("KeyboardInterrupt, closing...")
+        log.warning("KeyboardInterrupt detected, closing...")
+        await mongo_queue.close()
         mongo_client.close()
+        
 
 if __name__ == "__main__":
     asyncio.run(main())

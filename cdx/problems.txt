@@ -1,0 +1,17 @@
+Async vs Sync mongoDB inserts
+---
+
+-> Database locking on Sync
+** -> Implemented Mongo queues (chunking by blocks of defined size), reducing overhead per request to mongoDB
+-> Optimization to Mongo queues
+** -> Used sessions to further reduce overhead
+
+Minor Optimizations
+---
+
+-> Immidiately killing non-200 and non HTML-like responses
+** -> Saves compute later down the line
+-> Included "range" property
+** -> Also saves compute later
+
+

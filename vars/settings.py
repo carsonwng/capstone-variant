@@ -3,6 +3,7 @@ import os
 tick_speed = 2
 wait_tick_speed = 10
 chunk_size = 8192
+batch_size = 1_000
 
 base_dir = "../data"
 

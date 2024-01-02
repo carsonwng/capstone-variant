@@ -65,7 +65,7 @@ def main():
             log.info(f"{crawl['name']} processed")
         
     except KeyboardInterrupt:
-        log.info("KeyboardInterrupt, closing...")
+        log.warning("KeyboardInterrupt detected, closing...")
         mongo_client.close()
     
     except Exception as e:
