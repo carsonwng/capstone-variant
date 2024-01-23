@@ -95,19 +95,23 @@ async def main():
                                 process_progress.update(1)
                                 continue
                             
-                            res = mongo_queue.insert_one({
-                                "name": target,
-                                "crawl_id": cdx["crawl_id"],
-                                "crawl_mid": cdx["crawl_mid"],
-                                "cdx_id": cdx["id"],
-                                "cdx_mid": cdx["_id"],
-                                "status": "not_processed",
-                                "length": int(warc_meta["length"]),
-                                "offset": int(warc_meta["offset"]),
-                                "range": f"{warc_meta['offset']}-{warc_meta['offset'] + warc_meta['length']}",
-                                "filename": warc_meta["filename"],
-                                "warc_timestamp": timestamp
-                            })
+                            try:
+                                res = mongo_queue.insert_one({
+                                    "name": target,
+                                    "crawl_id": cdx["crawl_id"],
+                                    "crawl_mid": cdx["crawl_mid"],
+                                    "cdx_id": cdx["id"],
+                                    "cdx_mid": cdx["_id"],
+                                    "status": "not_processed",
+                                    "length": int(warc_meta["length"]),
+                                    "offset": int(warc_meta["offset"]),
+                                    "range": f"{warc_meta['offset']}-{int(warc_meta['offset']) + int(warc_meta['length']) - 1}", # the -1 is crucial. It completely screws the compression otherwise. Figured this out after two weeks of debugging. I will never get those two weeks back.
+                                    "filename": warc_meta["filename"],
+                                    "warc_timestamp": timestamp
+                                })
+                            except Exception as e:
+                                log.error(e)
+                                continue
 
                             process_progress.update(1)
 

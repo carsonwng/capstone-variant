@@ -1,4 +1,5 @@
 # external import
+import os
 import logging
 import pymongo
 import asyncio, multiprocessing
@@ -23,3 +24,6 @@ db = mongo_client[vars.mongo.db]
 [db[col] for col in vars.mongo.collections]
 
 log.info("MongoDB instantiated")
+
+if not os.path.exists(vars.settings.base_dir):
+    os.makedirs(vars.settings.base_dir)
